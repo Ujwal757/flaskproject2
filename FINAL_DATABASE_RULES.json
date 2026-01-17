@@ -1,0 +1,21 @@
+{
+  "rules": {
+    "users": {
+      ".indexOn": ["email"],
+      ".read": "true",
+      ".write": "true",
+      "$userId": {
+        ".read": "true",
+        ".write": "true"
+      }
+    },
+    "reports": {
+      ".read": "true",
+      ".write": "true",
+      "$reportId": {
+        ".indexOn": ["severity", "status", "assignedWorkerId", "timestamp"]
+      }
+    }
+  }
+}
+

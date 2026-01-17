@@ -1,0 +1,7 @@
+# Screens directory
+# This directory will contain:
+# - auth/ (Login screen)
+# - citizen/ (Upload, Home screens)
+# - authority/ (Dashboard, TaskAssignment screens)
+# - worker/ (JobListView, JobDetailView screens)
+
