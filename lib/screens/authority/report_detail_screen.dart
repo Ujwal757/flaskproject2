@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/report.dart';
 import '../../models/report_update.dart';
 import '../../services/database_service.dart';
 import 'task_assignment_screen.dart';
+import '../../services/reporting_service.dart';
+import '../../services/notification_service.dart';
+import '../../widgets/report_image.dart';
 
 class ReportDetailScreen extends StatelessWidget {
   final Report report;
@@ -19,7 +23,8 @@ class ReportDetailScreen extends StatelessWidget {
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
-          if (report.status == ReportStatus.pending || report.status == ReportStatus.assigned)
+          if (report.status == ReportStatus.pending ||
+              report.status == ReportStatus.assigned)
             IconButton(
               icon: const Icon(Icons.assignment),
               onPressed: () {
@@ -32,6 +37,71 @@ class ReportDetailScreen extends StatelessWidget {
               },
               tooltip: 'Assign Task',
             ),
+          if (report.status == ReportStatus.completed)
+            IconButton(
+              icon: const Icon(Icons.verified),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Verify Work'),
+                    content: const Text(
+                      'Are you sure the repair work is satisfactory? This will mark the report as verified.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text(
+                          'Verify & Close',
+                          style: TextStyle(color: Colors.green),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  await _databaseService.updateReportStatus(
+                    report.id,
+                    ReportStatus.verified,
+                  );
+                  if (context.mounted) {
+                    final notificationService =
+                        Provider.of<NotificationService>(
+                          context,
+                          listen: false,
+                        );
+
+                    // Notify Citizen
+                    await notificationService.showStatusUpdateToCitizen(
+                      report.id,
+                      'Verified',
+                    );
+
+                    // Notify Admin (of own action/confirmation)
+                    await notificationService.showVerificationAlert(report.id);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Report verified successfully!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    Navigator.pop(context);
+                  }
+                }
+              },
+              tooltip: 'Verify & Close',
+            ),
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: () => ReportingService().generateReport(report),
+            tooltip: 'Generate PDF Report',
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -51,14 +121,22 @@ class ReportDetailScreen extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 16),
-                    _buildDetailRow('Severity', report.severity.name.toUpperCase()),
-                    _buildDetailRow('Damage Type', report.damageType.name.toUpperCase()),
+                    _buildDetailRow(
+                      'Severity',
+                      report.severity.name.toUpperCase(),
+                    ),
+                    _buildDetailRow(
+                      'Damage Type',
+                      report.damageType.name.toUpperCase(),
+                    ),
                     _buildDetailRow('Status', report.status.name.toUpperCase()),
                     _buildDetailRow('Location', report.location),
                     if (report.assignedWorkerId != null) ...[
                       const SizedBox(height: 8),
                       FutureBuilder<Map<String, dynamic>?>(
-                        future: _databaseService.getUser(report.assignedWorkerId!),
+                        future: _databaseService.getUser(
+                          report.assignedWorkerId!,
+                        ),
                         builder: (context, snapshot) {
                           if (snapshot.hasData && snapshot.data != null) {
                             return _buildDetailRow(
@@ -66,7 +144,10 @@ class ReportDetailScreen extends StatelessWidget {
                               snapshot.data!['name'] as String? ?? 'Unknown',
                             );
                           }
-                          return _buildDetailRow('Assigned Worker', 'Loading...');
+                          return _buildDetailRow(
+                            'Assigned Worker',
+                            'Loading...',
+                          );
                         },
                       ),
                     ],
@@ -82,12 +163,13 @@ class ReportDetailScreen extends StatelessWidget {
                       'Before Image:',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    if (report.imageUrl != null && report.imageUrl!.isNotEmpty) ...[
+                    if (report.imageUrl != null &&
+                        report.imageUrl!.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          report.imageUrl!,
+                        child: ReportImage(
+                          imageUrl: report.imageUrl,
                           height: 200,
                           width: double.infinity,
                           fit: BoxFit.cover,
@@ -105,7 +187,11 @@ class ReportDetailScreen extends StatelessWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.image_not_supported, size: 48, color: Colors.grey.shade400),
+                            Icon(
+                              Icons.image_not_supported,
+                              size: 48,
+                              color: Colors.grey.shade400,
+                            ),
                             const SizedBox(height: 8),
                             Text(
                               'No image provided',
@@ -124,8 +210,8 @@ class ReportDetailScreen extends StatelessWidget {
                       const SizedBox(height: 8),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          report.afterImageUrl!,
+                        child: ReportImage(
+                          imageUrl: report.afterImageUrl,
                           height: 200,
                           width: double.infinity,
                           fit: BoxFit.cover,
@@ -140,7 +226,10 @@ class ReportDetailScreen extends StatelessWidget {
                     if (report.completedAt != null)
                       Text(
                         'Completed: ${_formatDateTime(report.completedAt!)}',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                       ),
                   ],
                 ),
@@ -199,13 +288,19 @@ class ReportDetailScreen extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               _formatDateTime(update.timestamp),
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             ),
                             if (update.workerName != null) ...[
                               const SizedBox(height: 4),
                               Text(
                                 'By: ${update.workerName}',
-                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
                               ),
                             ],
                           ],
@@ -214,7 +309,10 @@ class ReportDetailScreen extends StatelessWidget {
                             ? IconButton(
                                 icon: const Icon(Icons.image),
                                 onPressed: () {
-                                  _showAfterImage(context, update.afterImageUrl!);
+                                  _showAfterImage(
+                                    context,
+                                    update.afterImageUrl!,
+                                  );
                                 },
                               )
                             : null,
@@ -266,9 +364,7 @@ class ReportDetailScreen extends StatelessWidget {
                 ),
               ],
             ),
-            Flexible(
-              child: Image.network(imageUrl),
-            ),
+            Flexible(child: ReportImage(imageUrl: imageUrl)),
           ],
         ),
       ),
@@ -285,6 +381,10 @@ class ReportDetailScreen extends StatelessWidget {
         return Colors.orange;
       case ReportStatus.completed:
         return Colors.green;
+      case ReportStatus.verified:
+        return Colors.teal;
+      case ReportStatus.closed:
+        return Colors.grey;
     }
   }
 
@@ -298,6 +398,10 @@ class ReportDetailScreen extends StatelessWidget {
         return Icons.work;
       case ReportStatus.completed:
         return Icons.check_circle;
+      case ReportStatus.verified:
+        return Icons.verified;
+      case ReportStatus.closed:
+        return Icons.archive;
     }
   }
 
@@ -305,4 +409,3 @@ class ReportDetailScreen extends StatelessWidget {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 }
-

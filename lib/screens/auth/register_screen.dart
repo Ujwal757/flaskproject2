@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../models/user.dart';
-import '../citizen/reports_view_screen.dart';
+import '../citizen/citizen_home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -50,10 +50,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
 
       print('✅ Registration successful, navigating to reports screen...');
-      
+
       // Wait a frame to ensure UI is ready before navigation (prevents window.dart assertion)
       await Future.delayed(const Duration(milliseconds: 100));
-      
+
       if (!mounted) return;
 
       // Navigate to citizen screen
@@ -105,10 +105,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _navigateBasedOnRole(UserRole role) {
-    // Only citizens can register, so always navigate to citizen reports screen
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const ReportsViewScreen()));
+    // Only citizens can register, so always navigate to citizen home screen
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const CitizenHomeScreen()),
+    );
   }
 
   @override

@@ -6,6 +6,7 @@ import '../../services/database_service.dart';
 import '../../services/auth_service.dart';
 import '../auth/role_selection_screen.dart';
 import '../citizen/upload_screen.dart';
+import '../../widgets/report_image.dart';
 
 class ReportsViewScreen extends StatelessWidget {
   const ReportsViewScreen({super.key});
@@ -242,6 +243,10 @@ class ReportsViewScreen extends StatelessWidget {
         return Colors.orange.shade100;
       case ReportStatus.completed:
         return Colors.green.shade100;
+      case ReportStatus.verified:
+        return Colors.teal.shade100;
+      case ReportStatus.closed:
+        return Colors.grey.shade300;
     }
   }
 
@@ -309,8 +314,8 @@ class CitizenReportDetailScreen extends StatelessWidget {
                       const SizedBox(height: 8),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          report.imageUrl!,
+                        child: ReportImage(
+                          imageUrl: report.imageUrl,
                           height: 200,
                           width: double.infinity,
                           fit: BoxFit.cover,
@@ -326,8 +331,8 @@ class CitizenReportDetailScreen extends StatelessWidget {
                       const SizedBox(height: 8),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          report.afterImageUrl!,
+                        child: ReportImage(
+                          imageUrl: report.afterImageUrl,
                           height: 200,
                           width: double.infinity,
                           fit: BoxFit.cover,
@@ -482,7 +487,7 @@ class CitizenReportDetailScreen extends StatelessWidget {
                 ),
               ],
             ),
-            Flexible(child: Image.network(imageUrl)),
+            Flexible(child: ReportImage(imageUrl: imageUrl)),
           ],
         ),
       ),
@@ -499,6 +504,10 @@ class CitizenReportDetailScreen extends StatelessWidget {
         return Colors.orange;
       case ReportStatus.completed:
         return Colors.green;
+      case ReportStatus.verified:
+        return Colors.teal;
+      case ReportStatus.closed:
+        return Colors.grey;
     }
   }
 
@@ -512,6 +521,10 @@ class CitizenReportDetailScreen extends StatelessWidget {
         return Icons.work;
       case ReportStatus.completed:
         return Icons.check_circle;
+      case ReportStatus.verified:
+        return Icons.verified;
+      case ReportStatus.closed:
+        return Icons.archive;
     }
   }
 

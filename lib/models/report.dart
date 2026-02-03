@@ -1,23 +1,10 @@
 // Removed cloud_firestore import - using Realtime Database now
 
-enum ReportStatus {
-  pending,
-  assigned,
-  inProgress,
-  completed,
-}
+enum ReportStatus { pending, assigned, inProgress, completed, verified, closed }
 
-enum DamageSeverity {
-  minor,
-  moderate,
-  severe,
-}
+enum DamageSeverity { minor, moderate, severe }
 
-enum DamageType {
-  pothole,
-  crack,
-  none,
-}
+enum DamageType { pothole, crack, none }
 
 class Report {
   final String id;
@@ -134,4 +121,3 @@ class Report {
     );
   }
 }
-

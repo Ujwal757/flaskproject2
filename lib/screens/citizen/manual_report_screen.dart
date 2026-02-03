@@ -1,4 +1,7 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:geolocator/geolocator.dart';
@@ -6,15 +9,19 @@ import '../../models/report.dart';
 import '../../services/database_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/gemini_service.dart';
+import '../../services/notification_service.dart';
+import '../../models/notification_model.dart';
 
 class ManualReportScreen extends StatefulWidget {
   final Map<String, dynamic>? damageAnalysis; // Optional: AI analysis results
   final String? suggestedLocation; // Optional: GPS location
+  final XFile? image; // Optional: Image taken/selected for the report
 
   const ManualReportScreen({
     super.key,
     this.damageAnalysis,
     this.suggestedLocation,
+    this.image,
   });
 
   @override
@@ -41,7 +48,8 @@ class _ManualReportScreenState extends State<ManualReportScreen> {
     }
     // Pre-fill description if AI analysis is available
     if (widget.damageAnalysis != null) {
-      _descriptionController.text = widget.damageAnalysis!['description'] as String;
+      _descriptionController.text =
+          widget.damageAnalysis!['description'] as String;
     }
   }
 
@@ -62,7 +70,7 @@ class _ManualReportScreenState extends State<ManualReportScreen> {
         desiredAccuracy: LocationAccuracy.medium,
         timeLimit: const Duration(seconds: 5),
       ).timeout(const Duration(seconds: 5));
-      
+
       final location = '${position.latitude}, ${position.longitude}';
       setState(() {
         _locationController.text = location;
@@ -109,9 +117,31 @@ class _ManualReportScreenState extends State<ManualReportScreen> {
     });
 
     try {
+      print('🔵 Starting report submission flow');
+      String? imageUrl;
+
+      // Upload image if provided
+      if (widget.image != null) {
+        final imageId = const Uuid().v4();
+        if (kIsWeb) {
+          print('🔵 Reading image bytes...');
+          final bytes = await widget.image!.readAsBytes();
+          print('🔵 Uploading image bytes to Storage...');
+          imageUrl = await _databaseService.uploadImageBytes(bytes, imageId);
+          print('✅ Image uploaded: $imageUrl');
+        } else {
+          print('🔵 Uploading image file to Storage...');
+          imageUrl = await _databaseService.uploadImage(
+            File(widget.image!.path),
+            imageId,
+          );
+          print('✅ Image uploaded: $imageUrl');
+        }
+      }
+
       // Get location from user input
       final location = _locationController.text.trim();
-      
+
       // Generate report ID
       const uuid = Uuid();
       final reportId = uuid.v4();
@@ -119,20 +149,24 @@ class _ManualReportScreenState extends State<ManualReportScreen> {
       // Determine severity and damage type
       // Use AI analysis if available, otherwise use manual selection
       final severity = widget.damageAnalysis != null
-          ? GeminiService.parseSeverity(widget.damageAnalysis!['severity'] as String)
+          ? GeminiService.parseSeverity(
+              widget.damageAnalysis!['severity'] as String,
+            )
           : _selectedSeverity;
-      
+
       final damageType = widget.damageAnalysis != null
-          ? GeminiService.parseDamageType(widget.damageAnalysis!['damageType'] as String)
+          ? GeminiService.parseDamageType(
+              widget.damageAnalysis!['damageType'] as String,
+            )
           : _selectedDamageType;
 
       // Get description
       final description = _descriptionController.text.trim();
 
-      // Create report (without image)
+      // Create report
       final report = Report(
         id: reportId,
-        imageUrl: null, // No image for manual reports
+        imageUrl: imageUrl, // Use the uploaded image URL
         location: location,
         status: ReportStatus.pending,
         severity: severity,
@@ -143,7 +177,47 @@ class _ManualReportScreenState extends State<ManualReportScreen> {
       );
 
       // Save to database
+      print('🔵 Saving report to DatabaseService...');
       await _databaseService.createReport(report);
+      print('✅ Report saved successfully');
+
+      // Trigger notifications
+      if (mounted) {
+        final notificationService = Provider.of<NotificationService>(
+          context,
+          listen: false,
+        );
+
+        // Notify Citizen
+        await notificationService.showReportSubmitted(reportId);
+
+        // Notify Admin (simulated)
+        await notificationService.showAdminNewReport(reportId, severity.name);
+
+        // Extra alert if severe
+        if (severity == DamageSeverity.severe) {
+          await notificationService.showSevereDamageAlert(location);
+        }
+
+        // Persistent Notifications for Admins
+        final adminIds = await _databaseService.getAuthorityUserIds();
+        for (final adminId in adminIds) {
+          await _databaseService.createNotification(
+            AppNotification(
+              id: const Uuid().v4(),
+              userId: adminId,
+              title: 'New Road Report',
+              message:
+                  'A new ${severity.name} ${damageType.name} report has been submitted at $location.',
+              type: severity == DamageSeverity.severe
+                  ? NotificationType.warning
+                  : NotificationType.info,
+              timestamp: DateTime.now(),
+              relatedId: reportId,
+            ),
+          );
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -213,6 +287,47 @@ class _ManualReportScreenState extends State<ManualReportScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+
+              // Image preview if available
+              if (widget.image != null) ...[
+                const Text(
+                  'Captured Image:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 200,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: kIsWeb
+                        ? FutureBuilder(
+                            future: widget.image!.readAsBytes(),
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData) {
+                                return Image.memory(
+                                  snapshot.data!,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                );
+                              }
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            },
+                          )
+                        : Image.file(
+                            File(widget.image!.path),
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // Location field
               TextFormField(
@@ -295,12 +410,14 @@ class _ManualReportScreenState extends State<ManualReportScreen> {
                         const SizedBox(height: 12),
                         _buildInfoRow(
                           'Severity',
-                          (widget.damageAnalysis!['severity'] as String).toUpperCase(),
+                          (widget.damageAnalysis!['severity'] as String)
+                              .toUpperCase(),
                         ),
                         const SizedBox(height: 8),
                         _buildInfoRow(
                           'Damage Type',
-                          (widget.damageAnalysis!['damageType'] as String).toUpperCase(),
+                          (widget.damageAnalysis!['damageType'] as String)
+                              .toUpperCase(),
                         ),
                       ],
                     ),
@@ -416,10 +533,7 @@ class _ManualReportScreenState extends State<ManualReportScreen> {
           width: 100,
           child: Text(
             '$label:',
-            style: const TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: 14,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
           ),
         ),
         Text(
@@ -434,4 +548,3 @@ class _ManualReportScreenState extends State<ManualReportScreen> {
     );
   }
 }
-

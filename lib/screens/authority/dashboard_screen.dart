@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/report.dart';
 import '../../services/database_service.dart';
+import '../../widgets/notification_badge.dart';
 import '../../services/auth_service.dart';
 import '../auth/role_selection_screen.dart';
 import 'report_detail_screen.dart';
@@ -25,6 +26,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
+          const NotificationBadge(),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -312,6 +314,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return Colors.orange.shade100;
       case ReportStatus.completed:
         return Colors.green.shade100;
+      case ReportStatus.verified:
+        return Colors.teal.shade100;
+      case ReportStatus.closed:
+        return Colors.grey.shade300;
     }
   }
 }

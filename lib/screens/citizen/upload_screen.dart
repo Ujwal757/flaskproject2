@@ -127,8 +127,10 @@ class _UploadScreenState extends State<UploadScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) =>
-                          ManualReportScreen(damageAnalysis: _damageAnalysis),
+                      builder: (context) => ManualReportScreen(
+                        damageAnalysis: _damageAnalysis,
+                        image: _selectedImage,
+                      ),
                     ),
                   );
                 },
@@ -234,9 +236,8 @@ class _UploadScreenState extends State<UploadScreen> {
     try {
       final XFile? image = await _imagePicker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 75, // Reduced from 85 to 75 for faster uploads
-        maxWidth: 1920, // Limit max width to reduce file size
-        maxHeight: 1920, // Limit max height to reduce file size
+        imageQuality: 25,
+        maxWidth: 1024,
       );
 
       if (image != null) {

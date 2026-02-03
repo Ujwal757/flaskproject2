@@ -179,7 +179,8 @@ Return a JSON response with this exact format:
   "damageDetected": true or false (only if isRoad is true),
   "damageType": "Pothole" or "Crack" or "None" (only if isRoad is true),
   "severity": "Minor" or "Moderate" or "Severe" (only if isRoad is true),
-  "description": "A brief description" (only if isRoad is true)
+  "description": "A brief description" (only if isRoad is true),
+  "boundingBox": [ymin, xmin, ymax, xmax] (normalized coordinates 0-1000, only if damageDetected is true)
 }
 
 If isRoad is false, you can omit the other fields or set them to null.

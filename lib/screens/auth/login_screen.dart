@@ -3,13 +3,13 @@ import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../models/user.dart';
 import 'register_screen.dart';
-import '../citizen/reports_view_screen.dart';
+import '../citizen/citizen_home_screen.dart';
 import '../authority/dashboard_screen.dart';
 import '../worker/worker_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   final UserRole? selectedRole;
-  
+
   const LoginScreen({super.key, this.selectedRole});
 
   @override
@@ -111,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
         break;
       case UserRole.citizen:
       default:
-        destination = const ReportsViewScreen();
+        destination = const CitizenHomeScreen();
         break;
     }
 
@@ -311,7 +311,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 20),
 
                     // Register Link (only show for citizens)
-                    if (widget.selectedRole == null || widget.selectedRole == UserRole.citizen)
+                    if (widget.selectedRole == null ||
+                        widget.selectedRole == UserRole.citizen)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

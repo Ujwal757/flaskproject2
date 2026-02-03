@@ -1,0 +1,175 @@
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import '../models/report.dart';
+import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+class ReportingService {
+  Future<void> generateReport(Report report) async {
+    final pdf = pw.Document();
+
+    // Fetch images if they exist
+    pw.MemoryImage? beforeImage;
+    if (report.imageUrl != null && report.imageUrl!.isNotEmpty) {
+      try {
+        if (report.imageUrl!.startsWith('http')) {
+          final response = await http.get(Uri.parse(report.imageUrl!));
+          if (response.statusCode == 200) {
+            beforeImage = pw.MemoryImage(response.bodyBytes);
+          }
+        } else {
+          // Assume base64
+          beforeImage = pw.MemoryImage(base64Decode(report.imageUrl!));
+        }
+      } catch (e) {
+        print('Error fetching/decoding before image: $e');
+      }
+    }
+
+    pw.MemoryImage? afterImage;
+    if (report.afterImageUrl != null && report.afterImageUrl!.isNotEmpty) {
+      try {
+        if (report.afterImageUrl!.startsWith('http')) {
+          final response = await http.get(Uri.parse(report.afterImageUrl!));
+          if (response.statusCode == 200) {
+            afterImage = pw.MemoryImage(response.bodyBytes);
+          }
+        } else {
+          // Assume base64
+          afterImage = pw.MemoryImage(base64Decode(report.afterImageUrl!));
+        }
+      } catch (e) {
+        print('Error fetching/decoding after image: $e');
+      }
+    }
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return [
+            pw.Header(
+              level: 0,
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'RoadVision AI - Damage Report',
+                    style: pw.TextStyle(
+                      fontSize: 24,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.Text(DateFormat('dd/MM/yyyy').format(DateTime.now())),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Divider(),
+            pw.SizedBox(height: 20),
+
+            pw.Text(
+              'Report Details',
+              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 10),
+            _buildPdfRow('Report ID', report.id),
+            _buildPdfRow('Severity', report.severity.name.toUpperCase()),
+            _buildPdfRow('Damage Type', report.damageType.name.toUpperCase()),
+            _buildPdfRow('Status', report.status.name.toUpperCase()),
+            _buildPdfRow('Location', report.location),
+            _buildPdfRow(
+              'Reported At',
+              DateFormat('dd/MM/yyyy HH:mm').format(report.timestamp),
+            ),
+            if (report.completedAt != null)
+              _buildPdfRow(
+                'Completed At',
+                DateFormat('dd/MM/yyyy HH:mm').format(report.completedAt!),
+              ),
+
+            pw.SizedBox(height: 20),
+            pw.Text(
+              'Description:',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+            pw.Text(report.description),
+
+            pw.SizedBox(height: 30),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+              children: [
+                if (beforeImage != null)
+                  pw.Column(
+                    children: [
+                      pw.Text(
+                        'Before Repair',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
+                      pw.SizedBox(height: 10),
+                      pw.Image(
+                        beforeImage,
+                        width: 200,
+                        height: 150,
+                        fit: pw.BoxFit.cover,
+                      ),
+                    ],
+                  ),
+                if (afterImage != null)
+                  pw.Column(
+                    children: [
+                      pw.Text(
+                        'After Repair',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
+                      pw.SizedBox(height: 10),
+                      pw.Image(
+                        afterImage,
+                        width: 200,
+                        height: 150,
+                        fit: pw.BoxFit.cover,
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+
+            pw.Spacer(),
+            pw.Divider(),
+            pw.Align(
+              alignment: pw.Alignment.center,
+              child: pw.Text(
+                'Generated by RoadVision AI System',
+                style: pw.TextStyle(color: PdfColors.grey),
+              ),
+            ),
+          ];
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+    );
+  }
+
+  pw.Widget _buildPdfRow(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 2),
+      child: pw.Row(
+        children: [
+          pw.SizedBox(
+            width: 120,
+            child: pw.Text(
+              '$label:',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.Expanded(child: pw.Text(value)),
+        ],
+      ),
+    );
+  }
+}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/report.dart';
 import '../../services/database_service.dart';
+import '../../widgets/notification_badge.dart';
 import '../../services/auth_service.dart';
 import '../auth/role_selection_screen.dart';
 import 'worker_task_detail.dart';
@@ -15,17 +16,16 @@ class WorkerDashboard extends StatefulWidget {
 
 class _WorkerDashboardState extends State<WorkerDashboard> {
   final DatabaseService _databaseService = DatabaseService();
-  String _selectedFilter = 'all'; // 'all', 'assigned', 'inProgress', 'completed'
+  String _selectedFilter =
+      'all'; // 'all', 'assigned', 'inProgress', 'completed'
 
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
     final user = authService.currentUser;
-    
+
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text('Please log in')),
-      );
+      return const Scaffold(body: Center(child: Text('Please log in')));
     }
 
     return Scaffold(
@@ -34,6 +34,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
         actions: [
+          const NotificationBadge(),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -108,9 +109,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
           ),
 
           // Reports list
-          Expanded(
-            child: _buildReportsList(user.id),
-          ),
+          Expanded(child: _buildReportsList(user.id)),
         ],
       ),
     );
@@ -140,13 +139,11 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
         }
 
         if (snapshot.hasError) {
-          return Center(
-            child: Text('Error: ${snapshot.error}'),
-          );
+          return Center(child: Text('Error: ${snapshot.error}'));
         }
 
         final allReports = snapshot.data ?? [];
-        
+
         // Filter reports based on selected filter
         final filteredReports = allReports.where((report) {
           switch (_selectedFilter) {
@@ -164,9 +161,9 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
         if (filteredReports.isEmpty) {
           return Center(
             child: Text(
-              _selectedFilter == 'all' 
-                ? 'No tasks assigned yet' 
-                : 'No ${_selectedFilter} tasks',
+              _selectedFilter == 'all'
+                  ? 'No tasks assigned yet'
+                  : 'No ${_selectedFilter} tasks',
             ),
           );
         }
@@ -253,7 +250,11 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                  const Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Colors.grey,
+                  ),
                 ],
               ),
             ],
@@ -273,7 +274,10 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
         return Colors.orange.shade100;
       case ReportStatus.completed:
         return Colors.green.shade100;
+      case ReportStatus.verified:
+        return Colors.teal.shade100;
+      case ReportStatus.closed:
+        return Colors.grey.shade300;
     }
   }
 }
-

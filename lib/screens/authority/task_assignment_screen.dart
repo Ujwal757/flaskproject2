@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../models/report.dart';
 import '../../services/database_service.dart';
+import '../../services/notification_service.dart';
+import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
+import '../../models/notification_model.dart';
 
 class TaskAssignmentScreen extends StatefulWidget {
   final Report report;
@@ -41,9 +45,18 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 16),
-                    _buildDetailRow('Severity', widget.report.severity.name.toUpperCase()),
-                    _buildDetailRow('Damage Type', widget.report.damageType.name.toUpperCase()),
-                    _buildDetailRow('Status', widget.report.status.name.toUpperCase()),
+                    _buildDetailRow(
+                      'Severity',
+                      widget.report.severity.name.toUpperCase(),
+                    ),
+                    _buildDetailRow(
+                      'Damage Type',
+                      widget.report.damageType.name.toUpperCase(),
+                    ),
+                    _buildDetailRow(
+                      'Status',
+                      widget.report.status.name.toUpperCase(),
+                    ),
                     _buildDetailRow('Location', widget.report.location),
                     const SizedBox(height: 8),
                     Text(
@@ -175,6 +188,50 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
         _selectedWorkerId!,
       );
 
+      // Trigger notifications
+      if (mounted) {
+        final notificationService = Provider.of<NotificationService>(
+          context,
+          listen: false,
+        );
+        // Notify Worker
+        await notificationService.showTaskAssignedAlert(widget.report.id);
+
+        // Notify Citizen (simulated)
+        await notificationService.showStatusUpdateToCitizen(
+          widget.report.id,
+          'Assigned',
+        );
+
+        // Persistent Notification for Worker
+        await _databaseService.createNotification(
+          AppNotification(
+            id: const Uuid().v4(),
+            userId: _selectedWorkerId!,
+            title: 'New Task Assigned',
+            message:
+                'You have been assigned a new task: ${widget.report.damageType.name} at ${widget.report.location}.',
+            type: NotificationType.info,
+            timestamp: DateTime.now(),
+            relatedId: widget.report.id,
+          ),
+        );
+
+        // Persistent Notification for Citizen
+        await _databaseService.createNotification(
+          AppNotification(
+            id: const Uuid().v4(),
+            userId: widget.report.userId,
+            title: 'Report Update',
+            message:
+                'Your report for ${widget.report.damageType.name} has been assigned to a worker.',
+            type: NotificationType.success,
+            timestamp: DateTime.now(),
+            relatedId: widget.report.id,
+          ),
+        );
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -202,4 +259,3 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
     }
   }
 }
-
