@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
@@ -19,6 +21,7 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  late Timer _navigationTimer;
 
   @override
   void initState() {
@@ -43,18 +46,17 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _animationController.forward();
-    _navigateToNext();
+    _navigationTimer = Timer(const Duration(seconds: 3), _navigateToNext);
   }
 
   Future<void> _navigateToNext() async {
-    await Future.delayed(const Duration(seconds: 3));
     if (!mounted) return;
 
     final authService = Provider.of<AuthService>(context, listen: false);
-    
+
     // Initialize auth service (loads saved user)
     await authService.initialize();
-    
+
     if (authService.isLoggedIn) {
       // User is logged in, navigate based on role
       final role = authService.getCurrentUserRole();
@@ -89,6 +91,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    _navigationTimer.cancel();
     _animationController.dispose();
     super.dispose();
   }
@@ -119,7 +122,6 @@ class _SplashScreenState extends State<SplashScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // App Icon/Logo
                       Container(
                         width: 120,
                         height: 120,
@@ -141,7 +143,6 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ),
                       const SizedBox(height: 30),
-                      // App Name
                       const Text(
                         'RoadVision AI',
                         style: TextStyle(
@@ -152,7 +153,6 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ),
                       const SizedBox(height: 10),
-                      // Tagline
                       Text(
                         'Intelligent Road Damage Monitoring',
                         style: TextStyle(
@@ -162,7 +162,6 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ),
                       const SizedBox(height: 50),
-                      // Loading indicator
                       const SizedBox(
                         width: 40,
                         height: 40,
@@ -182,4 +181,3 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 }
-
